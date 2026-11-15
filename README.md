@@ -19,7 +19,7 @@ node tools/pack.mjs <password>        # packs src/ back into preview.bin
 node tools/serve.mjs . 8081           # check the login page and the packed copy
 ```
 
-Commit `preview.bin` after packing. Do not commit `src/`.
+Packing also stamps `index.html` with the new file's version, so commit both `preview.bin` and `index.html`. Do not commit `src/`.
 
 ## Notes
 

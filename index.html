@@ -62,6 +62,12 @@
 <script>
 (function () {
   'use strict';
+  // The lock needs a secure page. Anyone who arrives over plain http is sent to https.
+  if (location.protocol === 'http:' && !/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) {
+    location.replace('https://' + location.host + location.pathname + location.search + location.hash);
+    return;
+  }
+  var BIN = 'preview.bin?v=8bd17f4cf0';
   var KEY = 'fpl.k';
   var form = document.getElementById('f'), pw = document.getElementById('pw'), go = document.getElementById('go');
   var msg = document.getElementById('msg'), keep = document.getElementById('keep'), peek = document.getElementById('peek');
@@ -90,7 +96,7 @@
     return;
   }
 
-  var locked = fetch('preview.bin', { cache: 'no-cache' }).then(function (r) {
+  var locked = fetch(BIN, { cache: 'no-cache' }).then(function (r) {
     if (!r.ok) throw new Error('load');
     return r.arrayBuffer();
   });

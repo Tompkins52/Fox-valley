@@ -74,6 +74,14 @@ const key = await crypto.subtle.deriveKey(
 );
 const cipher = new Uint8Array(await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, key, zipped));
 
-await writeFile(outFile, Buffer.concat([enc.encode('FPL1'), salt, iv, cipher]));
+const packed = Buffer.concat([enc.encode('FPL1'), salt, iv, cipher]);
+await writeFile(outFile, packed);
+
+// Stamp the login page with this build so browsers and caches never pair it with an older file.
+const stamp = Buffer.from(await crypto.subtle.digest('SHA-256', packed)).toString('hex').slice(0, 10);
+const pagePath = path.join(root, 'index.html');
+const pageHtml = await readFile(pagePath, 'utf8');
+const stamped = pageHtml.replace(/preview\.bin\?v=[0-9a-f]+/, 'preview.bin?v=' + stamp);
+if (stamped !== pageHtml) await writeFile(pagePath, stamped);
 const kb = (n) => Math.round(n / 1024) + ' KB';
 console.log(`Packed ${files.length} files (${kb(rawBytes)}) into preview.bin (${kb(cipher.length + 32)}).`);
