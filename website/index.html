@@ -1,0 +1,251 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex, nofollow, noarchive">
+<meta name="referrer" content="no-referrer">
+<meta name="color-scheme" content="dark">
+<title>Website</title>
+<meta name="theme-color" content="#0c0c0d">
+<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23111'/%3E%3Crect x='9' y='14' width='14' height='11' rx='2' fill='%23fff'/%3E%3Cpath d='M12 14v-3a4 4 0 0 1 8 0v3' fill='none' stroke='%23fff' stroke-width='2.4'/%3E%3C/svg%3E">
+<style>
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { height: 100%; }
+  body {
+    margin: 0; background: #0c0c0d; color: #f4f4f5;
+    font: 16px/1.5 system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    display: grid; place-items: center; padding: 24px;
+  }
+  main { width: 100%; max-width: 360px; }
+  h1 { font-size: 1.5rem; line-height: 1.2; font-weight: 650; margin: 0 0 28px; letter-spacing: -0.01em; }
+  label { display: block; font-size: 0.875rem; color: #b4b4b8; margin-bottom: 8px; }
+  .field { position: relative; }
+  input[type=password], input[type=text] {
+    width: 100%; height: 52px; padding: 0 76px 0 16px; border-radius: 10px;
+    border: 1px solid #3a3a3f; background: #161618; color: inherit; font: inherit; font-size: 1.0625rem;
+  }
+  input:focus-visible, button:focus-visible { outline: 2px solid #fff; outline-offset: 2px; }
+  .peek {
+    position: absolute; right: 6px; top: 6px; height: 40px; padding: 0 12px; border: 0; border-radius: 7px;
+    background: transparent; color: #b4b4b8; font: inherit; font-size: 0.875rem; cursor: pointer;
+  }
+  .go {
+    width: 100%; height: 52px; margin-top: 14px; border: 0; border-radius: 10px; background: #f4f4f5; color: #0c0c0d;
+    font: inherit; font-weight: 650; font-size: 1.0625rem; cursor: pointer;
+  }
+  .go[disabled] { opacity: 0.6; cursor: progress; }
+  .keep { display: flex; align-items: center; gap: 10px; margin-top: 16px; font-size: 0.9375rem; color: #b4b4b8; }
+  .keep { min-height: 44px; }
+  .keep input { width: 24px; height: 24px; accent-color: #f4f4f5; }
+  .keep label { margin: 0; font-size: inherit; }
+  .msg { min-height: 1.5em; margin: 14px 0 0; font-size: 0.9375rem; color: #ff9d8a; }
+  .msg.quiet { color: #b4b4b8; }
+  .which { margin: 0 0 8px; font-size: 0.9375rem; font-weight: 650; color: #b4b4b8; }
+  [hidden] { display: none !important; }
+</style>
+</head>
+<body>
+<main>
+  <p class="which" id="which" hidden></p>
+  <h1>Fitness Product Login</h1>
+  <form id="f" autocomplete="off" novalidate>
+    <label for="pw">Password</label>
+    <div class="field">
+      <input id="pw" name="password" type="password" autocomplete="current-password" autocapitalize="none" autocorrect="off" spellcheck="false" required>
+      <button class="peek" type="button" id="peek" aria-pressed="false">Show</button>
+    </div>
+    <div class="keep">
+      <input id="keep" type="checkbox">
+      <label for="keep">Keep me logged in on this device</label>
+    </div>
+    <button class="go" id="go" type="submit">Log in</button>
+    <p class="msg" id="msg" role="status" aria-live="polite"></p>
+  </form>
+</main>
+<script>
+(function () {
+  'use strict';
+  // The lock needs a secure page. Anyone who arrives over plain http is sent to https.
+  if (location.protocol === 'http:' && !/^(localhost|127\.0\.0\.1)$/.test(location.hostname)) {
+    location.replace('https://' + location.host + location.pathname + location.search + location.hash);
+    return;
+  }
+  var BIN = '../preview.bin?v=2fe54eae99';
+  // Set only on the member and staff pages, which open one app by itself and can be put on a home screen.
+  var APP = {"only":"site","name":"Website","install":false,"tags":"\u003cmeta name=\"theme-color\" content=\"#000000\">"};
+  var KEY = 'fpl.k';
+  var form = document.getElementById('f'), pw = document.getElementById('pw'), go = document.getElementById('go');
+  var msg = document.getElementById('msg'), keep = document.getElementById('keep'), peek = document.getElementById('peek');
+  var dec = new TextDecoder();
+
+  function say(text, quiet) { msg.textContent = text; msg.className = 'msg' + (quiet ? ' quiet' : ''); }
+  function store(kind) { try { return window[kind]; } catch (e) { return null; } }
+  function getSaved() {
+    var s = store('sessionStorage'), l = store('localStorage');
+    try { return (s && s.getItem(KEY)) || (l && l.getItem(KEY)) || ''; } catch (e) { return ''; }
+  }
+  function save(b64, forever) {
+    try { var s = store('sessionStorage'); if (s) s.setItem(KEY, b64); } catch (e) {}
+    try { var l = store('localStorage'); if (l && forever) l.setItem(KEY, b64); } catch (e) {}
+  }
+  function forget() {
+    try { var s = store('sessionStorage'); if (s) s.removeItem(KEY); } catch (e) {}
+    try { var l = store('localStorage'); if (l) l.removeItem(KEY); } catch (e) {}
+  }
+  function b64(bytes) { var s = ''; for (var i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]); return btoa(s); }
+  function unb64(str) { var s = atob(str), a = new Uint8Array(s.length); for (var i = 0; i < s.length; i++) a[i] = s.charCodeAt(i); return a; }
+
+  if (APP) {
+    var which = document.getElementById('which');
+    which.textContent = APP.name; which.hidden = false;
+    keep.checked = true;   // a link people come back to should not ask every time; "Lock" inside forgets it
+    if (APP.install) {
+      // Android offers to install once the page qualifies. Hold on to the offer so the app can show its own Install button.
+      window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); window.__install = e; });
+      // Lets the app open with no connection. It stores this page and the locked file, never anything readable.
+      if ('serviceWorker' in navigator) { try { navigator.serviceWorker.register('../sw.js', { scope: './' }).catch(function () {}); } catch (e) {} }
+    }
+  }
+
+  if (!window.crypto || !crypto.subtle || typeof DecompressionStream === 'undefined') {
+    say('This browser is too old to open the page. Please update it or try another browser.');
+    go.disabled = true;
+    return;
+  }
+
+  var locked = fetch(BIN, { cache: 'no-cache' }).then(function (r) {
+    if (!r.ok) throw new Error('load');
+    return r.arrayBuffer();
+  });
+  locked.catch(function () {});
+
+  function keyFromPassword(password, salt) {
+    return crypto.subtle.importKey('raw', new TextEncoder().encode(password), 'PBKDF2', false, ['deriveBits']).then(function (base) {
+      return crypto.subtle.deriveBits({ name: 'PBKDF2', salt: salt, iterations: 600000, hash: 'SHA-256' }, base, 256);
+    }).then(function (bits) { return new Uint8Array(bits); });
+  }
+
+  function unlock(rawKey, buf) {
+    var bytes = new Uint8Array(buf);
+    if (dec.decode(bytes.subarray(0, 4)) !== 'FPL1') return Promise.reject(new Error('format'));
+    var iv = bytes.subarray(20, 32), cipher = bytes.subarray(32);
+    return crypto.subtle.importKey('raw', rawKey, 'AES-GCM', false, ['decrypt']).then(function (key) {
+      return crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv }, key, cipher);
+    }).then(function (zipped) {
+      var stream = new Blob([zipped]).stream().pipeThrough(new DecompressionStream('gzip'));
+      return new Response(stream).arrayBuffer();
+    }).then(function (plain) { return new Uint8Array(plain); });
+  }
+
+  function readFiles(c) {
+    var view = new DataView(c.buffer, c.byteOffset, c.byteLength), o = 4, files = {};
+    if (dec.decode(c.subarray(0, 4)) !== 'FPB1') throw new Error('format');
+    var count = view.getUint32(o); o += 4;
+    for (var i = 0; i < count; i++) {
+      var pl = view.getUint16(o); o += 2;
+      var name = dec.decode(c.subarray(o, o + pl)); o += pl;
+      var dl = view.getUint32(o); o += 4;
+      files[name] = c.subarray(o, o + dl); o += dl;
+    }
+    return files;
+  }
+
+  var MIME = { webp: 'image/webp', png: 'image/png', jpg: 'image/jpeg', jpeg: 'image/jpeg', svg: 'image/svg+xml', mp4: 'video/mp4', woff2: 'font/woff2' };
+  function resolve(from, rel) {
+    var base = from.split('/').slice(0, -1);
+    rel.split('/').forEach(function (part) { if (part === '..') base.pop(); else if (part !== '.' && part !== '') base.push(part); });
+    return base.join('/');
+  }
+
+  function start(files) {
+    var texts = {}, assets = {}, data = {};
+    Object.keys(files).forEach(function (p) {
+      if (/\.(html|css|js|json)$/i.test(p)) texts[p] = dec.decode(files[p]);
+      else if (!/\.(md|txt)$/i.test(p)) {
+        var ext = p.slice(p.lastIndexOf('.') + 1).toLowerCase();
+        assets[p] = URL.createObjectURL(new Blob([files[p]], { type: MIME[ext] || 'application/octet-stream' }));
+      }
+    });
+    Object.keys(texts).forEach(function (p) {
+      if (/\.json$/i.test(p)) data[p] = texts[p];
+      if (/\.css$/i.test(p)) {
+        texts[p] = texts[p].replace(/url\((['"]?)([^)'"]+)\1\)/g, function (m, q, u) {
+          if (/^(data:|blob:|https?:|#)/.test(u)) return m;
+          var k = resolve(p, u);
+          return assets[k] ? 'url("' + assets[k] + '")' : m;
+        });
+      }
+    });
+    var html = texts['index.html'];
+    if (!html) throw new Error('format');
+    html = html.replace(/<link rel="stylesheet" href="([^"]+)">/g, function (m, h) {
+      return texts[h] != null ? '<style>' + texts[h] + '</style>' : m;
+    });
+    html = html.replace(/<script src="([^"]+)"><\/script>/g, function (m, s) {
+      return texts[s] != null ? '<script>' + texts[s].replace(/<\/script/gi, '<\\/script') + '<\/script>' : m;
+    });
+    var boot = '<script>window.__ASSETS=' + JSON.stringify(assets) + ';window.__FILES=' +
+      JSON.stringify(data).replace(/</g, '\\u003c') + ';' + (APP ? 'window.__ONLY=' + JSON.stringify(APP.only) + ';' : '') + '<\/script>';
+    // The page is rewritten below, so the tags that make it installable have to be written into the new one too.
+    if (APP) html = html.replace(/<head>/i, function (m) { return m + APP.tags; });
+    html = html.replace('<!--boot-->', function () { return boot; });
+    document.open();
+    document.write(html);
+    document.close();
+  }
+
+  function open(rawKey, quiet) {
+    return locked.then(function (buf) {
+      return unlock(rawKey, buf);
+    }).then(function (plain) {
+      start(readFiles(plain));
+      return true;
+    }, function (err) {
+      if (err && err.message === 'load') { say('The page could not be loaded. Check your connection and try again.'); return false; }
+      if (!quiet) say('That password is not right. Try again.');
+      return false;
+    });
+  }
+
+  peek.addEventListener('click', function () {
+    var show = pw.type === 'password';
+    pw.type = show ? 'text' : 'password';
+    peek.textContent = show ? 'Hide' : 'Show';
+    peek.setAttribute('aria-pressed', String(show));
+    pw.focus();
+  });
+
+  form.addEventListener('submit', function (e) {
+    e.preventDefault();
+    var value = pw.value.trim().toLowerCase();
+    if (!value) { say('Enter the password.'); pw.focus(); return; }
+    go.disabled = true;
+    say('Checking...', true);
+    locked.then(function (buf) {
+      return keyFromPassword(value, new Uint8Array(buf).subarray(4, 20));
+    }).then(function (raw) {
+      return open(raw, false).then(function (ok) {
+        if (ok) save(b64(raw), keep.checked);
+        else { go.disabled = false; pw.select(); }
+      });
+    }, function () {
+      say('The page could not be loaded. Check your connection and try again.');
+      go.disabled = false;
+    });
+  });
+
+  var saved = getSaved();
+  if (saved) {
+    go.disabled = true;
+    say('Opening...', true);
+    open(unb64(saved), true).then(function (ok) {
+      if (!ok) { forget(); go.disabled = false; say(''); pw.focus(); }
+    });
+  } else {
+    pw.focus();
+  }
+})();
+</script>
+</body>
+</html>

@@ -5,8 +5,8 @@
 //   node tools/pack.mjs <password> --new-salt     asks every device for the password again
 //
 // Nothing in src/ is committed. preview.bin holds all of it, encrypted.
-// It also rewrites member/index.html and staff/index.html from the login page, so the two installable apps
-// always carry the same lock and the same version.
+// It also rewrites website/index.html, member/index.html and staff/index.html from the login page, so the three
+// links always carry the same lock and the same version.
 // Format: "FPL1" | salt (16) | iv (12) | AES-256-GCM( gzip( container ) )
 // Container: "FPB1" | u32 count | [ u16 pathLen | path | u32 dataLen | data ] ...
 // Key: PBKDF2-HMAC-SHA256, 600,000 rounds, from the trimmed, lowercased password.
@@ -97,12 +97,13 @@ const pageHtml = await readFile(pagePath, 'utf8');
 const stamped = pageHtml.replace(/preview\.bin\?v=[0-9a-f]+/, 'preview.bin?v=' + stamp);
 if (stamped !== pageHtml) await writeFile(pagePath, stamped);
 
-// The member app and the staff app each get a page of their own, which opens that app by itself and can be put on a
-// home screen. Each page is the login page with a few lines changed. Names here are plain on purpose: these files
-// sit outside the lock, so they must not say whose apps they are.
+// The website, the member app and the staff app each get a page of their own, which opens that part by itself.
+// The two apps can also be put on a home screen. Each page is the login page with a few lines changed. Names here
+// are plain on purpose: these files sit outside the lock, so they must not say whose website or apps they are.
 const APPS = [
-  { dir: 'member', only: 'app', name: 'Member app', long: 'Fitness member app', colour: '#000000' },
-  { dir: 'staff', only: 'staff', name: 'Staff app', long: 'Fitness staff app', colour: '#ffffff' },
+  { dir: 'website', only: 'site', name: 'Website', colour: '#000000', install: false },
+  { dir: 'member', only: 'app', name: 'Member app', long: 'Fitness member app', colour: '#000000', install: true },
+  { dir: 'staff', only: 'staff', name: 'Staff app', long: 'Fitness staff app', colour: '#ffffff', install: true },
 ];
 const swap = (text, from, to, what) => {
   if (!text.includes(from)) { console.error('The login page is missing the part that marks ' + what + '. Not written.'); process.exit(1); }
@@ -112,7 +113,7 @@ const page = stamped;
 for (const app of APPS) {
   // The same tags go on the login page and, once it is unlocked, on the app that replaces it.
   // Only the bar colour differs: the login page is dark, the staff app is light.
-  const tagsFor = (colour) => [
+  const tagsFor = (colour) => !app.install ? '<meta name="theme-color" content="' + colour + '">' : [
     '<link rel="manifest" href="app.webmanifest">',
     '<meta name="theme-color" content="' + colour + '">',
     '<meta name="mobile-web-app-capable" content="yes">',
@@ -127,7 +128,7 @@ for (const app of APPS) {
   html = swap(html, '<title>Fitness Product Login</title>', '<title>' + app.name + '</title>', 'the title');
   html = swap(html, '<!--shell-->', tagsFor('#0c0c0d').replace(/></g, '>\n<'), 'the head');
   html = swap(html, "var BIN = 'preview.bin?v=", "var BIN = '../preview.bin?v=", 'the locked file');
-  html = swap(html, 'var APP = null;', 'var APP = ' + JSON.stringify({ only: app.only, name: app.name, tags }).replace(/</g, '\\u003c') + ';', 'the app');
+  html = swap(html, 'var APP = null;', 'var APP = ' + JSON.stringify({ only: app.only, name: app.name, install: app.install, tags }).replace(/</g, '\\u003c') + ';', 'the app');
   const manifest = {
     id: '/' + app.dir + '/', name: app.long, short_name: app.name, description: 'A private preview. It opens with a password.',
     start_url: '/' + app.dir + '/', scope: '/' + app.dir + '/', display: 'standalone', background_color: app.colour, theme_color: app.colour,
@@ -139,8 +140,8 @@ for (const app of APPS) {
   };
   await mkdir(path.join(root, app.dir), { recursive: true });
   await writeFile(path.join(root, app.dir, 'index.html'), html);
-  await writeFile(path.join(root, app.dir, 'app.webmanifest'), JSON.stringify(manifest, null, 2) + '\n');
+  if (app.install) await writeFile(path.join(root, app.dir, 'app.webmanifest'), JSON.stringify(manifest, null, 2) + '\n');
 }
 
 const kb = (n) => Math.round(n / 1024) + ' KB';
-console.log(`Packed ${files.length} files (${kb(rawBytes)}) into preview.bin (${kb(cipher.length + 32)}). Wrote the member and staff pages.`);
+console.log(`Packed ${files.length} files (${kb(rawBytes)}) into preview.bin (${kb(cipher.length + 32)}). Wrote the website, member and staff pages.`);

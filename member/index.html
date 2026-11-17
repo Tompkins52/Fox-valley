@@ -78,9 +78,9 @@
     location.replace('https://' + location.host + location.pathname + location.search + location.hash);
     return;
   }
-  var BIN = '../preview.bin?v=f85aeea89f';
+  var BIN = '../preview.bin?v=2fe54eae99';
   // Set only on the member and staff pages, which open one app by itself and can be put on a home screen.
-  var APP = {"only":"app","name":"Member app","tags":"\u003clink rel=\"manifest\" href=\"app.webmanifest\">\u003cmeta name=\"theme-color\" content=\"#000000\">\u003cmeta name=\"mobile-web-app-capable\" content=\"yes\">\u003cmeta name=\"apple-mobile-web-app-capable\" content=\"yes\">\u003cmeta name=\"apple-mobile-web-app-status-bar-style\" content=\"black\">\u003cmeta name=\"apple-mobile-web-app-title\" content=\"Member app\">\u003clink rel=\"apple-touch-icon\" href=\"apple-touch-icon.png\">\u003clink rel=\"icon\" type=\"image/png\" sizes=\"192x192\" href=\"icon-192.png\">"};
+  var APP = {"only":"app","name":"Member app","install":true,"tags":"\u003clink rel=\"manifest\" href=\"app.webmanifest\">\u003cmeta name=\"theme-color\" content=\"#000000\">\u003cmeta name=\"mobile-web-app-capable\" content=\"yes\">\u003cmeta name=\"apple-mobile-web-app-capable\" content=\"yes\">\u003cmeta name=\"apple-mobile-web-app-status-bar-style\" content=\"black\">\u003cmeta name=\"apple-mobile-web-app-title\" content=\"Member app\">\u003clink rel=\"apple-touch-icon\" href=\"apple-touch-icon.png\">\u003clink rel=\"icon\" type=\"image/png\" sizes=\"192x192\" href=\"icon-192.png\">"};
   var KEY = 'fpl.k';
   var form = document.getElementById('f'), pw = document.getElementById('pw'), go = document.getElementById('go');
   var msg = document.getElementById('msg'), keep = document.getElementById('keep'), peek = document.getElementById('peek');
@@ -106,11 +106,13 @@
   if (APP) {
     var which = document.getElementById('which');
     which.textContent = APP.name; which.hidden = false;
-    keep.checked = true;   // an app on a home screen should not ask every time; "Lock" inside the app forgets it
-    // Android offers to install once the page qualifies. Hold on to the offer so the app can show its own Install button.
-    window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); window.__install = e; });
-    // Lets the app open with no connection. It stores this page and the locked file, never anything readable.
-    if ('serviceWorker' in navigator) { try { navigator.serviceWorker.register('../sw.js', { scope: './' }).catch(function () {}); } catch (e) {} }
+    keep.checked = true;   // a link people come back to should not ask every time; "Lock" inside forgets it
+    if (APP.install) {
+      // Android offers to install once the page qualifies. Hold on to the offer so the app can show its own Install button.
+      window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); window.__install = e; });
+      // Lets the app open with no connection. It stores this page and the locked file, never anything readable.
+      if ('serviceWorker' in navigator) { try { navigator.serviceWorker.register('../sw.js', { scope: './' }).catch(function () {}); } catch (e) {} }
+    }
   }
 
   if (!window.crypto || !crypto.subtle || typeof DecompressionStream === 'undefined') {

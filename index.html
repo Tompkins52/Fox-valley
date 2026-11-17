@@ -71,7 +71,7 @@
     location.replace('https://' + location.host + location.pathname + location.search + location.hash);
     return;
   }
-  var BIN = 'preview.bin?v=f85aeea89f';
+  var BIN = 'preview.bin?v=2fe54eae99';
   // Set only on the member and staff pages, which open one app by itself and can be put on a home screen.
   var APP = null;
   var KEY = 'fpl.k';
@@ -99,11 +99,13 @@
   if (APP) {
     var which = document.getElementById('which');
     which.textContent = APP.name; which.hidden = false;
-    keep.checked = true;   // an app on a home screen should not ask every time; "Lock" inside the app forgets it
-    // Android offers to install once the page qualifies. Hold on to the offer so the app can show its own Install button.
-    window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); window.__install = e; });
-    // Lets the app open with no connection. It stores this page and the locked file, never anything readable.
-    if ('serviceWorker' in navigator) { try { navigator.serviceWorker.register('../sw.js', { scope: './' }).catch(function () {}); } catch (e) {} }
+    keep.checked = true;   // a link people come back to should not ask every time; "Lock" inside forgets it
+    if (APP.install) {
+      // Android offers to install once the page qualifies. Hold on to the offer so the app can show its own Install button.
+      window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); window.__install = e; });
+      // Lets the app open with no connection. It stores this page and the locked file, never anything readable.
+      if ('serviceWorker' in navigator) { try { navigator.serviceWorker.register('../sw.js', { scope: './' }).catch(function () {}); } catch (e) {} }
+    }
   }
 
   if (!window.crypto || !crypto.subtle || typeof DecompressionStream === 'undefined') {

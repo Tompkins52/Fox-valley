@@ -5,7 +5,7 @@
 //   node tools/serve.mjs . 8081       the published folder (login page + preview.bin)
 
 import { createServer } from 'node:http';
-import { readFile } from 'node:fs/promises';
+import { readFile, stat } from 'node:fs/promises';
 import path from 'node:path';
 import { fileURLToPath } from 'node:url';
 
@@ -23,9 +23,15 @@ const types = {
 createServer(async (req, res) => {
   try {
     let p = decodeURIComponent(new URL(req.url, 'http://x').pathname);
-    if (p.endsWith('/')) p += 'index.html';
-    const full = path.join(dir, p);
+    let full = path.join(dir, p);
     if (!full.startsWith(dir)) throw new Error('outside');
+    // A folder asked for without its closing slash is sent to the one with it, the way the published host does.
+    if (!p.endsWith('/') && (await stat(full)).isDirectory()) {
+      const u = new URL(req.url, 'http://x');
+      res.writeHead(301, { location: u.pathname + '/' + u.search });
+      return res.end();
+    }
+    if (p.endsWith('/')) full = path.join(full, 'index.html');
     const data = await readFile(full);
     res.writeHead(200, { 'content-type': types[path.extname(full)] || 'application/octet-stream', 'cache-control': 'no-store' });
     res.end(data);
