@@ -7,6 +7,7 @@
 <meta name="referrer" content="no-referrer">
 <meta name="color-scheme" content="dark">
 <title>Fitness Product Login</title>
+<!--shell-->
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%23111'/%3E%3Crect x='9' y='14' width='14' height='11' rx='2' fill='%23fff'/%3E%3Cpath d='M12 14v-3a4 4 0 0 1 8 0v3' fill='none' stroke='%23fff' stroke-width='2.4'/%3E%3C/svg%3E">
 <style>
   *, *::before, *::after { box-sizing: border-box; }
@@ -35,15 +36,18 @@
   }
   .go[disabled] { opacity: 0.6; cursor: progress; }
   .keep { display: flex; align-items: center; gap: 10px; margin-top: 16px; font-size: 0.9375rem; color: #b4b4b8; }
-  .keep input { width: 20px; height: 20px; accent-color: #f4f4f5; }
+  .keep { min-height: 44px; }
+  .keep input { width: 24px; height: 24px; accent-color: #f4f4f5; }
   .keep label { margin: 0; font-size: inherit; }
   .msg { min-height: 1.5em; margin: 14px 0 0; font-size: 0.9375rem; color: #ff9d8a; }
   .msg.quiet { color: #b4b4b8; }
+  .which { margin: 0 0 8px; font-size: 0.9375rem; font-weight: 650; color: #b4b4b8; }
   [hidden] { display: none !important; }
 </style>
 </head>
 <body>
 <main>
+  <p class="which" id="which" hidden></p>
   <h1>Fitness Product Login</h1>
   <form id="f" autocomplete="off" novalidate>
     <label for="pw">Password</label>
@@ -67,7 +71,9 @@
     location.replace('https://' + location.host + location.pathname + location.search + location.hash);
     return;
   }
-  var BIN = 'preview.bin?v=959c095210';
+  var BIN = 'preview.bin?v=f85aeea89f';
+  // Set only on the member and staff pages, which open one app by itself and can be put on a home screen.
+  var APP = null;
   var KEY = 'fpl.k';
   var form = document.getElementById('f'), pw = document.getElementById('pw'), go = document.getElementById('go');
   var msg = document.getElementById('msg'), keep = document.getElementById('keep'), peek = document.getElementById('peek');
@@ -89,6 +95,16 @@
   }
   function b64(bytes) { var s = ''; for (var i = 0; i < bytes.length; i++) s += String.fromCharCode(bytes[i]); return btoa(s); }
   function unb64(str) { var s = atob(str), a = new Uint8Array(s.length); for (var i = 0; i < s.length; i++) a[i] = s.charCodeAt(i); return a; }
+
+  if (APP) {
+    var which = document.getElementById('which');
+    which.textContent = APP.name; which.hidden = false;
+    keep.checked = true;   // an app on a home screen should not ask every time; "Lock" inside the app forgets it
+    // Android offers to install once the page qualifies. Hold on to the offer so the app can show its own Install button.
+    window.addEventListener('beforeinstallprompt', function (e) { e.preventDefault(); window.__install = e; });
+    // Lets the app open with no connection. It stores this page and the locked file, never anything readable.
+    if ('serviceWorker' in navigator) { try { navigator.serviceWorker.register('../sw.js', { scope: './' }).catch(function () {}); } catch (e) {} }
+  }
 
   if (!window.crypto || !crypto.subtle || typeof DecompressionStream === 'undefined') {
     say('This browser is too old to open the page. Please update it or try another browser.');
@@ -168,7 +184,9 @@
       return texts[s] != null ? '<script>' + texts[s].replace(/<\/script/gi, '<\\/script') + '<\/script>' : m;
     });
     var boot = '<script>window.__ASSETS=' + JSON.stringify(assets) + ';window.__FILES=' +
-      JSON.stringify(data).replace(/</g, '\\u003c') + ';<\/script>';
+      JSON.stringify(data).replace(/</g, '\\u003c') + ';' + (APP ? 'window.__ONLY=' + JSON.stringify(APP.only) + ';' : '') + '<\/script>';
+    // The page is rewritten below, so the tags that make it installable have to be written into the new one too.
+    if (APP) html = html.replace(/<head>/i, function (m) { return m + APP.tags; });
     html = html.replace('<!--boot-->', function () { return boot; });
     document.open();
     document.write(html);
