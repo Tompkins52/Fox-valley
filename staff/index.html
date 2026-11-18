@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta charset="utf-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="robots" content="noindex, nofollow, noarchive">
 <meta name="referrer" content="no-referrer">
 <meta name="color-scheme" content="dark">
@@ -78,7 +78,28 @@
     location.replace('https://' + location.host + location.pathname + location.search + location.hash);
     return;
   }
-  var BIN = '../preview.bin?v=77d89a0b70';
+  // A phone whose browser asks for the "desktop site" ignores the line in the head that says "be as wide as the
+  // screen". It lays every page out about 980 wide and shrinks the result to fit, which leaves an app too small
+  // to read. This is how wide the phone itself is when that has happened, and 0 when the page already fits.
+  function layWidth() { return document.documentElement.clientWidth || window.innerWidth || 0; }
+  // The phone's own width, asked three ways because browsers in that mode do not all answer each one the same:
+  // the screen, the window, and the page as shown (its width times how far it has been shrunk).
+  function devWidth() {
+    var lay = layWidth(), vv = window.visualViewport, w = lay;
+    [screen.width, window.outerWidth, vv && vv.scale > 0 ? Math.round(vv.width * vv.scale) : 0].forEach(function (n) { if (n >= 240 && n < w) w = n; });
+    return w;
+  }
+  function phoneWidth() {
+    var lay = layWidth(), dev = devWidth();
+    return (navigator.maxTouchPoints || 0) > 0 && dev <= 600 && lay >= dev * 1.5 ? dev : 0;
+  }
+  // Set for this tab when a page came out wide only after it was opened. From then on it opens in the frame below.
+  var FIT = 'fpl.fit';
+  function fitAsked() { try { return window.sessionStorage.getItem(FIT) === '1'; } catch (e) { return false; } }
+  // This page is small and plain, so on such a phone it is simply enlarged.
+  (function () { var w = phoneWidth(); if (w) document.body.style.zoom = String(layWidth() / w); })();
+
+  var BIN = '../preview.bin?v=e56707cc86';
   // Set only on the member and staff pages, which open one app by itself and can be put on a home screen.
   var APP = {"only":"staff","name":"Staff app","install":true,"tags":"\u003clink rel=\"manifest\" href=\"app.webmanifest\">\u003cmeta name=\"theme-color\" content=\"#ffffff\">\u003cmeta name=\"mobile-web-app-capable\" content=\"yes\">\u003cmeta name=\"apple-mobile-web-app-capable\" content=\"yes\">\u003cmeta name=\"apple-mobile-web-app-status-bar-style\" content=\"black\">\u003cmeta name=\"apple-mobile-web-app-title\" content=\"Staff app\">\u003clink rel=\"apple-touch-icon\" href=\"apple-touch-icon.png\">\u003clink rel=\"icon\" type=\"image/png\" sizes=\"192x192\" href=\"icon-192.png\">"};
   var KEY = 'fpl.k';
@@ -197,9 +218,56 @@
     // The page is rewritten below, so the tags that make it installable have to be written into the new one too.
     if (APP) html = html.replace(/<head>/i, function (m) { return m + APP.tags; });
     html = html.replace('<!--boot-->', function () { return boot; });
+    if (phoneWidth() || fitAsked()) return inFrame(html);
     document.open();
     document.write(html);
     document.close();
+    // Should the page come out laid wide on a phone only now, open it again in the frame that fits. Once.
+    setTimeout(function () {
+      if (!phoneWidth() || fitAsked()) return;
+      try { window.sessionStorage.setItem(FIT, '1'); } catch (e) { return; }
+      location.reload();
+    }, 800);
+  }
+
+  // The app in a frame as wide as the phone, enlarged to fill the screen. Inside the frame the page is phone
+  // wide, so the app lays itself out for a phone whatever the browser decided about this page. The frame is
+  // sized against the screen by the browser itself (percentages of a fixed box), so it follows the address bar
+  // and a turned phone without being told.
+  function inFrame(html) {
+    var doc = document, root = doc.documentElement, body = doc.body;
+    window.__FX_HOST = true;
+    Array.prototype.slice.call(doc.querySelectorAll('style')).forEach(function (el) { el.parentNode.removeChild(el); });
+    root.style.cssText = 'height:100%;overflow:hidden;overscroll-behavior:none;touch-action:manipulation;background:#000';
+    body.style.cssText = 'margin:0;padding:0;height:100%;overflow:hidden;overscroll-behavior:none;touch-action:manipulation;background:#000';
+    while (body.firstChild) body.removeChild(body.firstChild);
+    var f = doc.createElement('iframe');
+    f.title = APP ? APP.name : 'Preview';
+    f.style.cssText = 'position:fixed;left:0;top:0;border:0;margin:0;padding:0;display:block;transform-origin:0 0;background:#000';
+    function size() {
+      var lay = layWidth(), dev = devWidth();
+      var s = dev < lay ? lay / dev : 1;
+      f.style.width = 'calc(100% / ' + s + ')';
+      f.style.height = 'calc(100% / ' + s + ')';
+      f.style.transform = s === 1 ? 'none' : 'scale(' + s + ')';
+    }
+    size();
+    body.appendChild(f);
+    window.addEventListener('resize', size);
+    window.addEventListener('orientationchange', function () { setTimeout(size, 300); });
+    var win = f.contentWindow, fd = f.contentDocument || win.document;
+    fd.open();
+    // The frame opens on this page's address without the part after "#". Give it that part, so a link to one
+    // screen still lands on that screen.
+    try { if (location.hash) win.history.replaceState(null, '', location.hash); } catch (e) {}
+    fd.write(html);
+    fd.close();
+    // The bar at the top of the phone takes its colour from this page, not from the frame.
+    try {
+      var theirs = fd.querySelector('meta[name="theme-color"]'), mine = doc.querySelector('meta[name="theme-color"]');
+      if (theirs && mine) mine.setAttribute('content', theirs.getAttribute('content'));
+    } catch (e) {}
+    try { win.focus(); } catch (e) {}
   }
 
   function open(rawKey, quiet) {

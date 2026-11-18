@@ -28,5 +28,6 @@ Packing also stamps `index.html` with the new file's version and rewrites `websi
 - The password is not case sensitive and is never stored in this repository.
 - A short password keeps out casual visitors and search engines. It does not stop someone determined to guess it, so treat what is inside as private, not secret.
 - A device that kept its login stays logged in when a new version is published, because packing reuses the salt of the file it replaces. A new password asks every device again. So does `node tools/pack.mjs <password> --new-salt`.
+- A phone whose browser asks for the desktop site lays pages out 980 wide and shrinks them. The login page notices and opens what is behind it in a frame as wide as the phone, enlarged to fill the screen, so it still gets the phone layout.
 - "Keep me logged in on this device" stores the unlock key in the browser. "Lock" inside the preview removes it. On the member and staff pages the box starts ticked, so an installed app asks once.
 - Anything readable in this repository must stay free of the customer's name, logo and details. That includes the manifests, the icons and this file.
